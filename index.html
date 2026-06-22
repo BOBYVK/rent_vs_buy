@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rent vs Buy Calculator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --buy-color: #2563eb;
+    --rent-color: #d97706;
+    --bg: #d6e4f7;
+    --surface: #eef5ff;
+    --surface2: #f8fafc;
+    --border: #bdd4ee;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --green: #16a34a;
+    --red: #dc2626;
+    --radius: 12px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  header {
+    background: linear-gradient(120deg, #0f2d6e 0%, #1a4faa 45%, #2563eb 75%, #0ea5e9 100%);
+    border-bottom: none;
+    padding: 0 32px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(15,45,110,0.35);
+  }
+  /* subtle shimmer lines */
+  header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      105deg,
+      transparent 0px, transparent 60px,
+      rgba(255,255,255,0.03) 60px, rgba(255,255,255,0.03) 61px
+    );
+    pointer-events: none;
+  }
+  header .icon {
+    width: 48px; height: 48px;
+    background: rgba(255,255,255,0.15);
+    border: 1.5px solid rgba(255,255,255,0.3);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  header .icon svg { width: 26px; height: 26px; }
+  header .header-text { display: flex; flex-direction: column; gap: 1px; }
+  header h1 {
+    font-size: 22px; font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #ffffff;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+  header h1 span { color: #7dd3fc; }
+  header p { font-size: 13px; color: rgba(255,255,255,0.65); font-weight: 400; }
+  header .header-badge {
+    margin-left: auto;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.85);
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 410px 1fr;
+    gap: 0;
+    height: calc(100vh - 72px);
+  }
+
+  /* ── LEFT PANEL ── */
+  .panel {
+    background: #b8cfe8;
+    border-right: 1px solid #9ab8d6;
+    overflow-y: auto;
+    height: 100%;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+  }
+  .section-header:first-child { border-top: none; margin-top: 0; }
+  .section-header .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .input-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 0 4px;
+  }
+  .input-row label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    color: var(--text);
+  }
+  .input-row label .hint {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .value-badge {
+    background: #edf0f5;
+    border: 1px solid #c8d0dc;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    min-width: 80px;
+    text-align: right;
+  }
+
+  input[type=range] {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--surface2);
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--buy-color);
+    border: 2px solid #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+  input[type=range]::-moz-range-thumb {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--buy-color);
+    border: 2px solid #fff;
+    cursor: pointer;
+  }
+
+  .advanced-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #edf0f5;
+    border: 1px solid #c8d0dc;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 8px;
+    transition: background 0.2s;
+  }
+  .advanced-toggle:hover { background: #3d4f66; }
+  .advanced-toggle .chevron { margin-left: auto; transition: transform 0.2s; }
+  .advanced-toggle.open .chevron { transform: rotate(180deg); }
+
+  .advanced-section { display: none; }
+  .advanced-section.open { display: block; }
+
+  /* ── RIGHT PANEL ── */
+  .main {
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    gap: 20px;
+    overflow-y: auto;
+    height: 100%;
+  }
+
+  /* Stats bar */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .stat-card .stat-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+  }
+  .stat-card .stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .stat-card .stat-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .stat-buy .stat-value { color: var(--buy-color); }
+  .stat-rent .stat-value { color: var(--rent-color); }
+  .stat-breakeven .stat-value { color: var(--green); }
+  .stat-verdict .stat-value { font-size: 16px; }
+
+  /* Chart */
+  .chart-card {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    flex: 1;
+  }
+  .chart-card h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .legend {
+    display: flex;
+    gap: 16px;
+    margin-left: auto;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text-muted);
+  }
+  .legend-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .chart-wrap {
+    position: relative;
+    height: 340px;
+  }
+
+  /* Initial wealth note */
+  .wealth-note {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--buy-color);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+  .wealth-note strong { color: var(--text); }
+  .wealth-note .wn-buy { color: var(--buy-color); font-weight: 600; }
+  .wealth-note .wn-rent { color: var(--rent-color); font-weight: 600; }
+
+  /* Monthly cost breakdown */
+  .breakdown-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .breakdown-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .breakdown-card h3 {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .breakdown-card h3::before {
+    content: '';
+    width: 10px; height: 10px; border-radius: 50%;
+    display: inline-block;
+  }
+  .breakdown-card.buy-card h3 { color: var(--buy-color); }
+  .breakdown-card.buy-card h3::before { background: var(--buy-color); }
+  .breakdown-card.rent-card h3 { color: var(--rent-color); }
+  .breakdown-card.rent-card h3::before { background: var(--rent-color); }
+
+  .breakdown-line {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .breakdown-line:last-child { border-bottom: none; }
+  .breakdown-line .amt { color: var(--text); font-weight: 500; }
+  .breakdown-total {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 8px 0 0;
+    margin-top: 4px;
+    border-top: 2px solid var(--border);
+  }
+
+  /* Verdict banner */
+  .verdict-banner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+  }
+  .verdict-banner .verdict-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+  }
+  .verdict-banner .verdict-text { line-height: 1.5; }
+  .verdict-banner strong { font-size: 15px; }
+  .verdict-banner.buy-wins { border-color: var(--buy-color); }
+  .verdict-banner.rent-wins { border-color: var(--rent-color); }
+
+  /* Location inputs */
+  .loc-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0; }
+  select, input[type=text] {
+    width: 100%;
+    background: #edf0f5;
+    border: 1px solid #c8d0dc;
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    padding: 8px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  select:focus, input[type=text]:focus { border-color: var(--buy-color); }
+  select option { background: var(--surface2); }
+  .auto-badge {
+    font-size: 10px;
+    background: rgba(34,197,94,0.15);
+    color: #22c55e;
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+
+  /* Calculate button */
+  .calc-btn {
+    width: 100%;
+    padding: 14px;
+    margin-top: 12px;
+    background: linear-gradient(135deg, var(--buy-color), #6366f1);
+    border: none;
+    border-radius: var(--radius);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .calc-btn:hover { opacity: 0.92; }
+  .calc-btn:active { transform: scale(0.98); }
+  .calc-btn.stale {
+    background: linear-gradient(135deg, #f59e0b, #ef4444);
+  }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .panel { border-right: none; border-bottom: 1px solid var(--border); }
+    .stats-bar { grid-template-columns: 1fr 1fr; }
+    .breakdown-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="icon">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 10.5L12 3L21 10.5V21H15V15H9V21H3V10.5Z" fill="white" fill-opacity="0.9"/>
+      <path d="M9 21V15H15V21" stroke="rgba(125,211,252,0.8)" stroke-width="1.2" fill="none"/>
+      <path d="M3 10.5L12 3L21 10.5" stroke="rgba(255,255,255,0.5)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+  <div class="header-text">
+    <h1>Rent <span>vs</span> Buy Calculator</h1>
+    <p>Model the true 30-year cost of renting vs. owning a home</p>
+  </div>
+  <div class="header-badge">📊 30-Year Wealth Model</div>
+</header>
+
+<div class="layout">
+  <!-- LEFT: INPUTS -->
+  <aside class="panel">
+
+    <div class="section-header" style="border-top:none;margin-top:0">
+      <span class="dot" style="background:#a855f7"></span>
+      Location
+    </div>
+
+    <div class="input-row" style="padding:4px 0">
+      <label style="margin-bottom:4px">State</label>
+      <select id="stateSelect" onchange="onStateChange()">
+        <option value="">— Select state —</option>
+        <option>Alabama</option><option>Alaska</option><option>Arizona</option>
+        <option>Arkansas</option><option>California</option><option>Colorado</option>
+        <option>Connecticut</option><option>Delaware</option><option>Florida</option>
+        <option>Georgia</option><option>Hawaii</option><option>Idaho</option>
+        <option>Illinois</option><option>Indiana</option><option>Iowa</option>
+        <option>Kansas</option><option>Kentucky</option><option>Louisiana</option>
+        <option>Maine</option><option>Maryland</option><option>Massachusetts</option>
+        <option>Michigan</option><option>Minnesota</option><option>Mississippi</option>
+        <option>Missouri</option><option>Montana</option><option>Nebraska</option>
+        <option>Nevada</option><option>New Hampshire</option><option>New Jersey</option>
+        <option>New Mexico</option><option>New York</option><option>North Carolina</option>
+        <option>North Dakota</option><option>Ohio</option><option>Oklahoma</option>
+        <option>Oregon</option><option>Pennsylvania</option><option>Rhode Island</option>
+        <option>South Carolina</option><option>South Dakota</option><option>Tennessee</option>
+        <option>Texas</option><option>Utah</option><option>Vermont</option>
+        <option>Virginia</option><option>Washington</option><option>West Virginia</option>
+        <option>Wisconsin</option><option>Wyoming</option><option>Washington DC</option>
+      </select>
+    </div>
+
+    <div class="loc-row">
+      <div>
+        <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">County</label>
+        <input type="text" id="countyInput" list="countyList" placeholder="e.g. Los Angeles" oninput="onCountyChange()">
+        <datalist id="countyList"></datalist>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">City <span style="font-size:10px">(optional)</span></label>
+        <input type="text" id="cityInput" placeholder="e.g. Chicago">
+      </div>
+    </div>
+
+    <div id="locationStatus" style="font-size:11px;color:var(--text-muted);padding:2px 0;min-height:16px"></div>
+
+    <div class="section-header">
+      <span class="dot" style="background:var(--buy-color)"></span>
+      Buying
+    </div>
+
+    <div class="input-row">
+      <label>Home Price <span class="value-badge" id="lbl-homePrice">$500,000</span></label>
+      <input type="range" id="homePrice" min="100000" max="3000000" step="10000" value="500000"
+        oninput="refreshLabels()">
+    </div>
+
+    <div class="input-row">
+      <label>Down Payment <span class="value-badge" id="lbl-downPct">20%</span></label>
+      <input type="range" id="downPct" min="3" max="60" step="1" value="20"
+        oninput="refreshLabels()">
+    </div>
+
+    <div class="input-row">
+      <label>Mortgage Rate <span class="value-badge" id="lbl-mortgageRate">6.5%</span></label>
+      <input type="range" id="mortgageRate" min="2" max="12" step="0.1" value="6.5"
+        oninput="refreshLabels()">
+    </div>
+
+    <div class="input-row">
+      <label>Loan Term <span class="value-badge" id="lbl-loanTerm">30 yr</span></label>
+      <input type="range" id="loanTerm" min="10" max="30" step="5" value="30"
+        oninput="refreshLabels()">
+    </div>
+
+    <div class="input-row">
+      <label>Monthly HOA <span class="value-badge" id="lbl-hoa">$0</span></label>
+      <input type="range" id="hoa" min="0" max="2000" step="25" value="0"
+        oninput="refreshLabels()">
+    </div>
+
+    <div class="input-row">
+      <label>Federal Tax Rate <span class="value-badge" id="lbl-fedTax">22%</span></label>
+      <input type="range" id="fedTax" min="10" max="37" step="1" value="22" oninput="refreshLabels()">
+    </div>
+
+    <div class="input-row">
+      <label>State Income Tax <span id="stateTaxAutoTag" class="auto-badge" style="display:none">AUTO</span> <span class="value-badge" id="lbl-stateTax">0%</span></label>
+      <input type="range" id="stateTax" min="0" max="15" step="0.1" value="0" oninput="onStateTaxManual()">
+    </div>
+
+    <div class="section-header">
+      <span class="dot" style="background:var(--rent-color)"></span>
+      Renting
+    </div>
+
+    <div class="input-row">
+      <label>Monthly Rent <span class="value-badge" id="lbl-monthlyRent" style="min-width:90px">$2,500</span></label>
+      <input type="range" id="monthlyRent" min="500" max="15000" step="100" value="2500"
+        oninput="refreshLabels()">
+    </div>
+
+    <div class="input-row">
+      <label>Annual Rent Increase <span class="value-badge" id="lbl-rentIncrease">3%</span></label>
+      <input type="range" id="rentIncrease" min="0" max="10" step="0.25" value="3"
+        oninput="refreshLabels()">
+    </div>
+
+    <div class="section-header">
+      <span class="dot" style="background:#22c55e"></span>
+      Investments
+    </div>
+
+    <div class="input-row">
+      <label>Investment Return <span class="hint">(if renting)</span> <span class="value-badge" id="lbl-investReturn">7%</span></label>
+      <input type="range" id="investReturn" min="0" max="15" step="0.25" value="7"
+        oninput="refreshLabels()">
+    </div>
+
+    <div class="input-row">
+      <label>Home Appreciation <span class="value-badge" id="lbl-homeAppreciation">3%</span></label>
+      <input type="range" id="homeAppreciation" min="0" max="10" step="0.25" value="3"
+        oninput="refreshLabels()">
+    </div>
+
+    <div class="advanced-toggle" id="advancedToggle" onclick="toggleAdvanced()">
+      ⚙️ Advanced Settings
+      <span class="chevron">▾</span>
+    </div>
+    <div class="advanced-section" id="advancedSection">
+      <div class="input-row">
+        <label>Property Tax Rate <span class="value-badge" id="lbl-propertyTax">1.2%</span></label>
+        <input type="range" id="propertyTax" min="0.2" max="3" step="0.05" value="1.2"
+          oninput="refreshLabels()">
+      </div>
+      <div class="input-row">
+        <label>Annual Maintenance <span class="value-badge" id="lbl-maintenance">1%</span></label>
+        <input type="range" id="maintenance" min="0" max="3" step="0.1" value="1"
+          oninput="refreshLabels()">
+      </div>
+      <div class="input-row">
+        <label>Monthly Insurance <span class="value-badge" id="lbl-insurance">$150</span></label>
+        <input type="range" id="insurance" min="0" max="1000" step="25" value="150"
+          oninput="refreshLabels()">
+      </div>
+      <div class="input-row">
+        <label>Buying Closing Costs <span class="value-badge" id="lbl-closingCosts">2.5%</span></label>
+        <input type="range" id="closingCosts" min="0" max="6" step="0.1" value="2.5"
+          oninput="refreshLabels()">
+      </div>
+      <div class="input-row">
+        <label>Selling Costs (Realtor) <span class="value-badge" id="lbl-sellingCosts">6%</span></label>
+        <input type="range" id="sellingCosts" min="0" max="10" step="0.5" value="6"
+          oninput="refreshLabels()">
+      </div>
+    </div>
+
+    <button class="calc-btn" id="calcBtn" onclick="runCalc()">Calculate</button>
+
+  </aside>
+
+  <!-- RIGHT: OUTPUT -->
+  <main class="main">
+
+    <!-- Stats bar -->
+    <div class="stats-bar">
+      <div class="stat-card stat-buy">
+        <div class="stat-label">Buy Monthly Cost</div>
+        <div class="stat-value" id="stat-buyMonthly">—</div>
+        <div class="stat-sub">Mortgage + taxes + upkeep</div>
+      </div>
+      <div class="stat-card stat-rent">
+        <div class="stat-label">Rent Monthly Cost</div>
+        <div class="stat-value" id="stat-rentMonthly">—</div>
+        <div class="stat-sub">Starting monthly rent</div>
+      </div>
+      <div class="stat-card stat-breakeven">
+        <div class="stat-label">Break-even Point</div>
+        <div class="stat-value" id="stat-breakeven">—</div>
+        <div class="stat-sub" id="stat-breakeven-sub">Buying wealth overtakes renting</div>
+      </div>
+      <div class="stat-card stat-verdict">
+        <div class="stat-label">30-Year Winner</div>
+        <div class="stat-value" id="stat-verdict">—</div>
+        <div class="stat-sub" id="stat-verdict-sub">Wealth gap after 30 years</div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="chart-card">
+      <h2>
+        <span id="chartTitle">Net Wealth Over 30 Years</span>
+        <span class="legend">
+          <span class="legend-item"><span class="legend-dot" style="background:var(--buy-color)"></span> Buy</span>
+          <span class="legend-item"><span class="legend-dot" style="background:var(--rent-color)"></span> Rent</span>
+        </span>
+      </h2>
+      <div class="chart-wrap">
+        <canvas id="myChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Initial wealth note -->
+    <div class="wealth-note" id="wealthNote">
+      <strong>How initial net wealth is calculated:</strong>
+      <span id="wealthNoteText"> Select inputs and click Calculate.</span>
+    </div>
+
+    <!-- Monthly breakdown -->
+    <div class="breakdown-row">
+      <div class="breakdown-card buy-card">
+        <h3>Buying — Year 1 Monthly Costs</h3>
+        <div class="breakdown-line"><span>Mortgage Payment</span><span class="amt" id="bk-mortgage">—</span></div>
+        <div class="breakdown-line"><span>Property Tax</span><span class="amt" id="bk-tax">—</span></div>
+        <div class="breakdown-line"><span>Maintenance</span><span class="amt" id="bk-maint">—</span></div>
+        <div class="breakdown-line"><span>Home Insurance</span><span class="amt" id="bk-ins">—</span></div>
+        <div class="breakdown-line"><span>HOA</span><span class="amt" id="bk-hoa">—</span></div>
+        <div class="breakdown-line" style="color:var(--green)"><span>Interest Tax Savings</span><span class="amt" id="bk-taxsave" style="color:var(--green)">—</span></div>
+        <div class="breakdown-total"><span>Effective Monthly (after tax)</span><span id="bk-total">—</span></div>
+      </div>
+      <div class="breakdown-card rent-card">
+        <h3>Renting — Upfront Investment</h3>
+        <div class="breakdown-line"><span>Down Payment (invested)</span><span class="amt" id="rk-down">—</span></div>
+        <div class="breakdown-line"><span>Closing Costs (invested)</span><span class="amt" id="rk-closing">—</span></div>
+        <div class="breakdown-line"><span>At <span id="rk-return-rate">7</span>% annual return, after 30 yr</span><span class="amt" id="rk-grown">—</span></div>
+        <div class="breakdown-line"><span>Monthly Rent (Year 1)</span><span class="amt" id="rk-rent1">—</span></div>
+        <div class="breakdown-total"><span>Monthly Rent (Year 30)</span><span id="rk-rent30">—</span></div>
+      </div>
+    </div>
+
+    <!-- Verdict -->
+    <div class="verdict-banner" id="verdictBanner">
+      <div class="verdict-icon" id="verdictIcon">⏳</div>
+      <div class="verdict-text" id="verdictText">Calculating…</div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ── Location data ─────────────────────────────────────────────────────────────
+// propertyTax = avg effective rate %, incomeTax = top marginal state rate %
+const STATE_DATA = {
+  'Alabama':       { pt: 0.41, it: 5.0  }, 'Alaska':        { pt: 1.04, it: 0    },
+  'Arizona':       { pt: 0.62, it: 2.5  }, 'Arkansas':      { pt: 0.62, it: 4.7  },
+  'California':    { pt: 0.75, it: 9.3  }, 'Colorado':      { pt: 0.51, it: 4.4  },
+  'Connecticut':   { pt: 2.15, it: 6.99 }, 'Delaware':      { pt: 0.57, it: 6.6  },
+  'Florida':       { pt: 0.86, it: 0    }, 'Georgia':       { pt: 0.92, it: 5.49 },
+  'Hawaii':        { pt: 0.32, it: 8.25 }, 'Idaho':         { pt: 0.69, it: 5.8  },
+  'Illinois':      { pt: 2.27, it: 4.95 }, 'Indiana':       { pt: 0.85, it: 3.23 },
+  'Iowa':          { pt: 1.57, it: 6.0  }, 'Kansas':        { pt: 1.43, it: 5.7  },
+  'Kentucky':      { pt: 0.86, it: 4.5  }, 'Louisiana':     { pt: 0.55, it: 4.25 },
+  'Maine':         { pt: 1.36, it: 7.15 }, 'Maryland':      { pt: 1.09, it: 5.75 },
+  'Massachusetts': { pt: 1.23, it: 5.0  }, 'Michigan':      { pt: 1.54, it: 4.25 },
+  'Minnesota':     { pt: 1.12, it: 9.85 }, 'Mississippi':   { pt: 0.65, it: 5.0  },
+  'Missouri':      { pt: 0.97, it: 4.95 }, 'Montana':       { pt: 0.84, it: 6.75 },
+  'Nebraska':      { pt: 1.73, it: 5.84 }, 'Nevada':        { pt: 0.60, it: 0    },
+  'New Hampshire': { pt: 2.18, it: 0    }, 'New Jersey':    { pt: 2.47, it: 10.75},
+  'New Mexico':    { pt: 0.80, it: 5.9  }, 'New York':      { pt: 1.73, it: 10.9 },
+  'North Carolina':{ pt: 0.82, it: 4.5  }, 'North Dakota':  { pt: 0.98, it: 2.5  },
+  'Ohio':          { pt: 1.59, it: 3.99 }, 'Oklahoma':      { pt: 0.90, it: 4.75 },
+  'Oregon':        { pt: 0.97, it: 9.9  }, 'Pennsylvania':  { pt: 1.58, it: 3.07 },
+  'Rhode Island':  { pt: 1.63, it: 5.99 }, 'South Carolina':{ pt: 0.57, it: 7.0  },
+  'South Dakota':  { pt: 1.22, it: 0    }, 'Tennessee':     { pt: 0.71, it: 0    },
+  'Texas':         { pt: 1.68, it: 0    }, 'Utah':          { pt: 0.63, it: 4.85 },
+  'Vermont':       { pt: 1.90, it: 8.75 }, 'Virginia':      { pt: 0.82, it: 5.75 },
+  'Washington':    { pt: 0.98, it: 0    }, 'West Virginia': { pt: 0.59, it: 6.5  },
+  'Wisconsin':     { pt: 1.73, it: 7.65 }, 'Wyoming':       { pt: 0.61, it: 0    },
+  'Washington DC': { pt: 0.56, it: 10.75},
+};
+
+// county key = "State|County" (title-case), pt = effective property tax rate %
+const COUNTY_DATA = {
+  // California
+  'California|Los Angeles':{ pt: 0.75 }, 'California|San Diego':   { pt: 0.75 },
+  'California|Orange':     { pt: 0.69 }, 'California|Riverside':   { pt: 0.97 },
+  'California|San Bernardino':{ pt: 0.84 },'California|Santa Clara':{ pt: 0.73 },
+  'California|Alameda':    { pt: 0.88 }, 'California|Sacramento':  { pt: 0.78 },
+  'California|Contra Costa':{ pt: 0.78 },'California|San Francisco':{ pt: 0.64 },
+  'California|Ventura':    { pt: 0.71 }, 'California|San Mateo':   { pt: 0.64 },
+  'California|Fresno':     { pt: 0.73 }, 'California|Kern':        { pt: 0.78 },
+  // Texas
+  'Texas|Harris':          { pt: 1.99 }, 'Texas|Dallas':           { pt: 1.99 },
+  'Texas|Tarrant':         { pt: 1.85 }, 'Texas|Bexar':            { pt: 1.87 },
+  'Texas|Travis':          { pt: 1.97 }, 'Texas|Collin':           { pt: 1.67 },
+  'Texas|Denton':          { pt: 1.83 }, 'Texas|Fort Bend':        { pt: 2.23 },
+  'Texas|El Paso':         { pt: 1.92 }, 'Texas|Hidalgo':          { pt: 1.49 },
+  'Texas|Williamson':      { pt: 1.99 }, 'Texas|Montgomery':       { pt: 1.99 },
+  // Florida
+  'Florida|Miami-Dade':    { pt: 0.95 }, 'Florida|Broward':        { pt: 0.99 },
+  'Florida|Palm Beach':    { pt: 0.88 }, 'Florida|Hillsborough':   { pt: 0.90 },
+  'Florida|Orange':        { pt: 0.92 }, 'Florida|Pinellas':       { pt: 0.88 },
+  'Florida|Duval':         { pt: 0.83 }, 'Florida|Lee':            { pt: 0.80 },
+  'Florida|Polk':          { pt: 1.09 }, 'Florida|Volusia':        { pt: 1.04 },
+  'Florida|Sarasota':      { pt: 0.80 }, 'Florida|Collier':        { pt: 0.60 },
+  // New York
+  'New York|Kings':        { pt: 0.72 }, 'New York|Queens':        { pt: 0.83 },
+  'New York|New York':     { pt: 0.79 }, 'New York|Suffolk':       { pt: 2.22 },
+  'New York|Nassau':       { pt: 2.35 }, 'New York|Westchester':   { pt: 2.65 },
+  'New York|Erie':         { pt: 2.58 }, 'New York|Monroe':        { pt: 3.08 },
+  'New York|Bronx':        { pt: 0.84 }, 'New York|Richmond':      { pt: 0.83 },
+  'New York|Onondaga':     { pt: 2.77 }, 'New York|Albany':        { pt: 2.55 },
+  // Illinois
+  'Illinois|Cook':         { pt: 2.10 }, 'Illinois|DuPage':        { pt: 2.17 },
+  'Illinois|Lake':         { pt: 2.72 }, 'Illinois|Will':          { pt: 2.37 },
+  'Illinois|Kane':         { pt: 2.71 }, 'Illinois|Winnebago':     { pt: 2.86 },
+  // Pennsylvania
+  'Pennsylvania|Philadelphia':{ pt: 0.97 },'Pennsylvania|Allegheny':{ pt: 2.07 },
+  'Pennsylvania|Montgomery':{ pt: 1.96 },'Pennsylvania|Bucks':     { pt: 1.84 },
+  'Pennsylvania|Delaware':  { pt: 2.09 },'Pennsylvania|Chester':   { pt: 1.81 },
+  'Pennsylvania|Lancaster':  { pt: 1.88 },'Pennsylvania|York':     { pt: 1.74 },
+  // Ohio
+  'Ohio|Franklin':         { pt: 1.90 }, 'Ohio|Cuyahoga':          { pt: 2.52 },
+  'Ohio|Hamilton':         { pt: 1.80 }, 'Ohio|Summit':            { pt: 2.30 },
+  'Ohio|Montgomery':       { pt: 2.19 }, 'Ohio|Lucas':             { pt: 2.04 },
+  'Ohio|Butler':           { pt: 1.65 }, 'Ohio|Stark':             { pt: 1.75 },
+  // Michigan
+  'Michigan|Wayne':        { pt: 2.35 }, 'Michigan|Oakland':       { pt: 1.58 },
+  'Michigan|Macomb':       { pt: 1.60 }, 'Michigan|Kent':          { pt: 1.68 },
+  'Michigan|Washtenaw':    { pt: 1.85 }, 'Michigan|Ingham':        { pt: 2.30 },
+  // Georgia
+  'Georgia|Fulton':        { pt: 1.08 }, 'Georgia|Gwinnett':       { pt: 1.00 },
+  'Georgia|Cobb':          { pt: 0.86 }, 'Georgia|DeKalb':         { pt: 1.09 },
+  'Georgia|Cherokee':      { pt: 0.76 }, 'Georgia|Forsyth':        { pt: 0.72 },
+  // Arizona
+  'Arizona|Maricopa':      { pt: 0.59 }, 'Arizona|Pima':           { pt: 0.61 },
+  'Arizona|Pinal':         { pt: 0.63 }, 'Arizona|Yavapai':        { pt: 0.59 },
+  // Nevada
+  'Nevada|Clark':          { pt: 0.60 }, 'Nevada|Washoe':          { pt: 0.68 },
+  // Washington
+  'Washington|King':       { pt: 0.93 }, 'Washington|Pierce':      { pt: 0.99 },
+  'Washington|Snohomish':  { pt: 0.87 }, 'Washington|Spokane':     { pt: 1.05 },
+  'Washington|Clark':      { pt: 0.96 }, 'Washington|Thurston':    { pt: 0.94 },
+  // Oregon
+  'Oregon|Multnomah':      { pt: 1.28 }, 'Oregon|Washington':      { pt: 0.98 },
+  'Oregon|Lane':           { pt: 1.07 }, 'Oregon|Clackamas':       { pt: 0.95 },
+  'Oregon|Marion':         { pt: 1.04 },
+  // Colorado
+  'Colorado|Denver':       { pt: 0.52 }, 'Colorado|El Paso':       { pt: 0.51 },
+  'Colorado|Jefferson':    { pt: 0.51 }, 'Colorado|Arapahoe':      { pt: 0.56 },
+  'Colorado|Adams':        { pt: 0.56 }, 'Colorado|Douglas':       { pt: 0.55 },
+  'Colorado|Boulder':      { pt: 0.50 }, 'Colorado|Larimer':       { pt: 0.47 },
+  // North Carolina
+  'North Carolina|Mecklenburg':{ pt: 0.77 },'North Carolina|Wake':{ pt: 0.75 },
+  'North Carolina|Guilford':{ pt: 0.86 },'North Carolina|Durham':  { pt: 1.03 },
+  'North Carolina|Forsyth':{ pt: 0.89 },'North Carolina|Cumberland':{ pt: 0.76 },
+  // Virginia
+  'Virginia|Fairfax':      { pt: 1.05 }, 'Virginia|Prince William':{ pt: 1.06 },
+  'Virginia|Loudoun':      { pt: 1.00 }, 'Virginia|Chesterfield':  { pt: 0.90 },
+  'Virginia|Henrico':      { pt: 0.87 }, 'Virginia|Arlington':     { pt: 0.87 },
+  // Maryland
+  'Maryland|Montgomery':   { pt: 1.08 },'Maryland|Prince Georges': { pt: 1.25 },
+  'Maryland|Baltimore County':{ pt: 1.18 },'Maryland|Anne Arundel':{ pt: 1.04 },
+  'Maryland|Howard':       { pt: 1.10 },'Maryland|Baltimore City': { pt: 2.47 },
+  // New Jersey
+  'New Jersey|Bergen':     { pt: 2.18 },'New Jersey|Middlesex':    { pt: 2.76 },
+  'New Jersey|Essex':      { pt: 3.66 },'New Jersey|Hudson':       { pt: 2.90 },
+  'New Jersey|Monmouth':   { pt: 2.13 },'New Jersey|Ocean':        { pt: 2.12 },
+  'New Jersey|Union':      { pt: 3.61 },'New Jersey|Morris':       { pt: 2.13 },
+  'New Jersey|Camden':     { pt: 3.37 },'New Jersey|Burlington':   { pt: 2.41 },
+  // Massachusetts
+  'Massachusetts|Suffolk': { pt: 1.14 },'Massachusetts|Middlesex': { pt: 1.19 },
+  'Massachusetts|Worcester':{ pt: 1.44 },'Massachusetts|Essex':    { pt: 1.36 },
+  'Massachusetts|Norfolk':  { pt: 1.27 },'Massachusetts|Bristol':  { pt: 1.27 },
+  // Minnesota
+  'Minnesota|Hennepin':    { pt: 1.28 },'Minnesota|Ramsey':        { pt: 1.44 },
+  'Minnesota|Dakota':      { pt: 1.14 },'Minnesota|Anoka':         { pt: 1.12 },
+  // Tennessee
+  'Tennessee|Shelby':      { pt: 0.97 },'Tennessee|Davidson':      { pt: 0.73 },
+  'Tennessee|Knox':        { pt: 0.63 },'Tennessee|Hamilton':      { pt: 0.68 },
+  // Indiana
+  'Indiana|Marion':        { pt: 1.06 },'Indiana|Lake':            { pt: 1.97 },
+  'Indiana|Hamilton':      { pt: 0.84 },'Indiana|Allen':           { pt: 1.00 },
+  // Missouri
+  'Missouri|St. Louis County':{ pt: 1.21 },'Missouri|Jackson':    { pt: 1.25 },
+  'Missouri|St. Louis City':  { pt: 1.64 },'Missouri|St. Charles':{ pt: 0.97 },
+  // Wisconsin
+  'Wisconsin|Milwaukee':   { pt: 2.36 },'Wisconsin|Dane':          { pt: 2.01 },
+  'Wisconsin|Waukesha':    { pt: 1.86 },'Wisconsin|Brown':         { pt: 2.00 },
+  // Utah
+  'Utah|Salt Lake':        { pt: 0.63 },'Utah|Utah':               { pt: 0.52 },
+  'Utah|Davis':            { pt: 0.64 },'Utah|Weber':              { pt: 0.68 },
+  // South Carolina
+  'South Carolina|Greenville':{ pt: 0.58 },'South Carolina|Richland':{ pt: 0.55 },
+  'South Carolina|Charleston':{ pt: 0.45 },'South Carolina|Horry':  { pt: 0.47 },
+  // Connecticut
+  'Connecticut|Fairfield': { pt: 1.81 },'Connecticut|Hartford':    { pt: 2.37 },
+  'Connecticut|New Haven':  { pt: 2.71 },
+  // Nebraska
+  'Nebraska|Douglas':      { pt: 2.16 },'Nebraska|Lancaster':      { pt: 2.01 },
+  // Iowa
+  'Iowa|Polk':             { pt: 1.51 },'Iowa|Linn':               { pt: 1.79 },
+  'Iowa|Scott':            { pt: 2.09 },'Iowa|Johnson':            { pt: 1.83 },
+  // Kansas
+  'Kansas|Johnson':        { pt: 1.35 },'Kansas|Sedgwick':         { pt: 1.44 },
+  // Louisiana
+  'Louisiana|Orleans':     { pt: 0.57 },'Louisiana|Jefferson':     { pt: 0.46 },
+  'Louisiana|East Baton Rouge':{ pt: 0.49 },
+  // Idaho
+  'Idaho|Ada':             { pt: 0.66 },'Idaho|Canyon':            { pt: 0.66 },
+  // Hawaii
+  'Hawaii|Honolulu':       { pt: 0.31 },'Hawaii|Maui':             { pt: 0.29 },
+  // Kentucky
+  'Kentucky|Jefferson':    { pt: 0.97 },'Kentucky|Fayette':        { pt: 0.84 },
+  // Oklahoma
+  'Oklahoma|Oklahoma County':{ pt: 0.94 },'Oklahoma|Tulsa':        { pt: 0.97 },
+};
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const fmt = (n, decimals=0) => n < 0
+  ? '-$' + Math.abs(n).toLocaleString('en-US', {maximumFractionDigits: decimals})
+  : '$' + n.toLocaleString('en-US', {maximumFractionDigits: decimals});
+const fmtK = n => {
+  const abs = Math.abs(n);
+  const sign = n < 0 ? '-' : '';
+  if (abs >= 1e6) return sign + '$' + (abs/1e6).toFixed(2) + 'M';
+  if (abs >= 1000) return sign + '$' + (abs/1000).toFixed(0) + 'K';
+  return fmt(n);
+};
+
+// ── Inline break-even line plugin (no CDN needed) ────────────────────────────
+let breakEvenX = null;
+const breakEvenPlugin = {
+  id: 'breakEvenLine',
+  afterDraw(chart) {
+    if (breakEvenX === null) return;
+    const { ctx, scales: { x, y } } = chart;
+    const px = x.getPixelForValue(breakEvenX - 1);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(px, y.top);
+    ctx.lineTo(px, y.bottom);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(34,197,94,0.8)';
+    ctx.setLineDash([6, 4]);
+    ctx.stroke();
+    // Label
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(34,197,94,0.15)';
+    const label = 'Break-even yr ' + breakEvenX;
+    ctx.font = 'bold 11px -apple-system, sans-serif';
+    const tw = ctx.measureText(label).width;
+    ctx.fillRect(px + 6, y.top + 10, tw + 12, 22);
+    ctx.fillStyle = '#22c55e';
+    ctx.fillText(label, px + 12, y.top + 25);
+    ctx.restore();
+  }
+};
+Chart.register(breakEvenPlugin);
+
+// White canvas background
+Chart.register({
+  id: 'canvasBg',
+  beforeDraw(chart) {
+    const { ctx, chartArea } = chart;
+    if (!chartArea) return;
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(chartArea.left, chartArea.top, chartArea.width, chartArea.height);
+    ctx.restore();
+  }
+});
+
+// ── Chart setup ──────────────────────────────────────────────────────────────
+const ctx = $('myChart').getContext('2d');
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [
+      {
+        label: 'Buy Net Wealth',
+        data: [],
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59,130,246,0.08)',
+        borderWidth: 2.5,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        fill: false,
+        tension: 0.3,
+      },
+      {
+        label: 'Rent Net Wealth',
+        data: [],
+        borderColor: '#f59e0b',
+        backgroundColor: 'rgba(245,158,11,0.08)',
+        borderWidth: 2.5,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        fill: false,
+        tension: 0.3,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#ffffff',
+        borderColor: '#e2e8f0',
+        borderWidth: 1,
+        titleColor: '#64748b',
+        bodyColor: '#0f172a',
+        padding: 12,
+        callbacks: {
+          title: items => 'Year ' + items[0].label,
+          label: item => ' ' + item.dataset.label + ': ' + fmtK(item.parsed.y),
+        }
+      },
+      breakEvenLine: {}
+    },
+    animation: false,
+    scales: {
+      x: {
+        title: { display: true, text: 'Year', color: '#64748b', font: { size: 12 } },
+        ticks: { color: '#64748b', maxTicksLimit: 10 },
+        grid: { display: false }
+      },
+      y: {
+        title: { display: true, text: 'Net Wealth', color: '#64748b', font: { size: 12 } },
+        ticks: { color: '#64748b', callback: v => fmtK(v) },
+        grid: { display: false }
+      }
+    }
+  }
+});
+
+// ── Core simulation ───────────────────────────────────────────────────────────
+function simulate(inputs) {
+  const {
+    homePrice, downPct, mortgageRate, loanTerm,
+    monthlyRent, rentIncrease, investReturn,
+    homeAppreciation, propertyTax, maintenance,
+    monthlyInsurance, monthlyHOA, closingCostPct, sellingCostPct,
+    fedTaxRate, stateTaxRate
+  } = inputs;
+
+  const downPayment    = homePrice * downPct / 100;
+  const closingCosts   = homePrice * closingCostPct / 100;
+  const loanAmount     = homePrice - downPayment;
+  const nPayments      = loanTerm * 12;
+  const combinedTaxRate = (fedTaxRate + stateTaxRate) / 100;
+
+  // Monthly mortgage payment (fixed)
+  const mr = mortgageRate / 100 / 12;
+  const monthlyMortgage = mr > 0
+    ? loanAmount * mr * Math.pow(1+mr, nPayments) / (Math.pow(1+mr, nPayments) - 1)
+    : loanAmount / nPayments;
+
+  const monthlyInvReturn = investReturn / 100 / 12;
+
+  let renterPortfolio = downPayment + closingCosts;
+  let buyerPortfolio  = 0;
+  let mortgageBalance = loanAmount;
+  let currentRent     = monthlyRent;
+  let yr1TaxSavings   = 0;
+
+  const YEARS = 30;
+  const buyWealth  = [];
+  const rentWealth = [];
+  let breakEvenYear = null;
+
+  for (let month = 1; month <= YEARS * 12; month++) {
+    renterPortfolio *= (1 + monthlyInvReturn);
+    buyerPortfolio  *= (1 + monthlyInvReturn);
+
+    if (month > 1 && (month - 1) % 12 === 0) {
+      currentRent *= (1 + rentIncrease / 100);
+    }
+
+    const homeVal = homePrice * Math.pow(1 + homeAppreciation / 100, month / 12);
+
+    // Mortgage interest split + tax savings
+    let monthlyInterest = 0;
+    if (mortgageBalance > 0 && month <= nPayments) {
+      monthlyInterest = mortgageBalance * mr;
+      const principal = monthlyMortgage - monthlyInterest;
+      mortgageBalance = Math.max(0, mortgageBalance - principal);
+    }
+    const taxSavings = monthlyInterest * combinedTaxRate;
+    if (month <= 12) yr1TaxSavings += taxSavings / 12; // avg monthly for year 1
+
+    const propTax   = homeVal * propertyTax / 100 / 12;
+    const maint     = homeVal * maintenance / 100 / 12;
+    const grossCost = (month <= nPayments ? monthlyMortgage : 0)
+                    + propTax + maint + monthlyInsurance + monthlyHOA;
+    const buyerCost = grossCost - taxSavings; // net after interest deduction
+
+    const delta = buyerCost - currentRent;
+    renterPortfolio += delta;
+    buyerPortfolio  -= delta;
+
+    if (month % 12 === 0) {
+      const year = month / 12;
+      const hv   = homePrice * Math.pow(1 + homeAppreciation / 100, year);
+      const sc   = hv * sellingCostPct / 100;
+
+      const bw = hv - mortgageBalance - sc + buyerPortfolio;
+      const rw = renterPortfolio;
+
+      buyWealth.push(bw);
+      rentWealth.push(rw);
+
+      if (breakEvenYear === null && bw >= rw) breakEvenYear = year;
+    }
+  }
+
+  return { buyWealth, rentWealth, breakEvenYear, monthlyMortgage, yr1TaxSavings };
+}
+
+// ── Read inputs ───────────────────────────────────────────────────────────────
+function readInputs() {
+  return {
+    homePrice:       +$('homePrice').value,
+    downPct:         +$('downPct').value,
+    mortgageRate:    +$('mortgageRate').value,
+    loanTerm:        +$('loanTerm').value,
+    monthlyRent:     +$('monthlyRent').value,
+    rentIncrease:    +$('rentIncrease').value,
+    investReturn:    +$('investReturn').value,
+    homeAppreciation:+$('homeAppreciation').value,
+    propertyTax:     +$('propertyTax').value,
+    maintenance:     +$('maintenance').value,
+    monthlyInsurance:+$('insurance').value,
+    monthlyHOA:      +$('hoa').value,
+    closingCostPct:  +$('closingCosts').value,
+    sellingCostPct:  +$('sellingCosts').value,
+    fedTaxRate:      +$('fedTax').value,
+    stateTaxRate:    +$('stateTax').value,
+  };
+}
+
+// ── Update labels ─────────────────────────────────────────────────────────────
+function updateLabels(inp) {
+  $('lbl-homePrice').textContent      = fmtK(inp.homePrice);
+  $('lbl-downPct').textContent        = inp.downPct + '%';
+  $('lbl-mortgageRate').textContent   = inp.mortgageRate.toFixed(1) + '%';
+  $('lbl-loanTerm').textContent       = inp.loanTerm + ' yr';
+  $('lbl-monthlyRent').textContent    = fmt(inp.monthlyRent);
+  $('lbl-rentIncrease').textContent   = inp.rentIncrease + '%';
+  $('lbl-investReturn').textContent   = inp.investReturn + '%';
+  $('lbl-homeAppreciation').textContent = inp.homeAppreciation + '%';
+  $('lbl-propertyTax').textContent    = inp.propertyTax + '%';
+  $('lbl-maintenance').textContent    = inp.maintenance + '%';
+  $('lbl-insurance').textContent      = fmt(inp.monthlyInsurance);
+  $('lbl-hoa').textContent            = fmt(inp.monthlyHOA);
+  $('lbl-closingCosts').textContent   = inp.closingCostPct + '%';
+  $('lbl-sellingCosts').textContent   = inp.sellingCostPct + '%';
+  $('lbl-fedTax').textContent         = inp.fedTaxRate + '%';
+  $('lbl-stateTax').textContent       = inp.stateTaxRate.toFixed(1) + '%';
+}
+
+// ── Main update ───────────────────────────────────────────────────────────────
+function update() {
+  const inp = readInputs();
+  updateLabels(inp);
+
+  const { buyWealth, rentWealth, breakEvenYear, monthlyMortgage, yr1TaxSavings } = simulate(inp);
+
+  // Chart data
+  const labels = Array.from({length: 30}, (_, i) => i + 1);
+  chart.data.labels            = labels;
+  chart.data.datasets[0].data  = buyWealth;
+  chart.data.datasets[1].data  = rentWealth;
+
+  // Update break-even marker for inline plugin
+  breakEvenX = breakEvenYear;
+
+  // Update chart title to reflect loan term
+  $('chartTitle').textContent = `Net Wealth Over 30 Years · ${inp.loanTerm}-yr Mortgage`;
+
+  chart.update('none');
+
+  // ── Stats bar ────────────────────────────────────────────────────────────
+  const downPayment  = inp.homePrice * inp.downPct / 100;
+  const propTaxMo    = inp.homePrice * inp.propertyTax / 100 / 12;
+  const maintMo      = inp.homePrice * inp.maintenance / 100 / 12;
+  const yr1Interest  = (inp.homePrice - inp.homePrice * inp.downPct / 100) * inp.mortgageRate / 100 / 12;
+  const yr1TaxSave   = yr1Interest * (inp.fedTaxRate + inp.stateTaxRate) / 100;
+  const buyMonthly   = monthlyMortgage + propTaxMo + maintMo + inp.monthlyInsurance + inp.monthlyHOA - yr1TaxSave;
+
+  $('stat-buyMonthly').textContent  = fmtK(Math.round(buyMonthly));
+  $('stat-rentMonthly').textContent = fmtK(inp.monthlyRent);
+
+  if (breakEvenYear !== null) {
+    $('stat-breakeven').textContent     = 'Year ' + breakEvenYear;
+    $('stat-breakeven-sub').textContent = 'Buying wealth overtakes renting';
+  } else {
+    $('stat-breakeven').textContent     = 'Never';
+    $('stat-breakeven-sub').textContent = 'Renting stays ahead through year 30';
+  }
+
+  const bw30 = buyWealth[29];
+  const rw30 = rentWealth[29];
+  const gap30 = bw30 - rw30;
+  const buyWins30 = bw30 >= rw30;
+
+  $('stat-verdict').textContent     = buyWins30 ? '🏠 Buy' : '🔑 Rent';
+  $('stat-verdict').style.color     = buyWins30 ? 'var(--buy-color)' : 'var(--rent-color)';
+  $('stat-verdict-sub').textContent = (buyWins30 ? 'Buy ahead by ' : 'Rent ahead by ')
+                                    + fmtK(Math.abs(gap30));
+
+  // ── Initial wealth note ───────────────────────────────────────────────────
+  const downPaymentAmt  = inp.homePrice * inp.downPct / 100;
+  const closingCostsAmt = inp.homePrice * inp.closingCostPct / 100;
+  const sellingCostsAmt = inp.homePrice * inp.sellingCostPct / 100;
+  const buyerStartWealth = downPaymentAmt - sellingCostsAmt;
+  const renterStartWealth = downPaymentAmt + closingCostsAmt;
+  $('wealthNoteText').innerHTML =
+    ` The chart starts at Year 0 with both scenarios already positioned: ` +
+    `<span class="wn-buy">Buyer</span> has paid <strong>${fmtK(Math.round(downPaymentAmt))}</strong> down + ` +
+    `<strong>${fmtK(Math.round(closingCostsAmt))}</strong> closing costs. Their day-one net wealth is ` +
+    `home equity minus future selling costs = <strong>${fmtK(Math.round(buyerStartWealth))}</strong> ` +
+    `(often negative early on). ` +
+    `<span class="wn-rent">Renter</span> invests that same <strong>${fmtK(Math.round(renterStartWealth))}</strong> ` +
+    `lump sum on day one, starting ahead. Each month, whoever has lower costs invests the difference — ` +
+    `the break-even year is when the buyer's growing equity overtakes the renter's investment portfolio.`;
+
+  // ── Breakdown ─────────────────────────────────────────────────────────────
+  $('bk-mortgage').textContent = fmtK(Math.round(monthlyMortgage));
+  $('bk-tax').textContent      = fmtK(Math.round(propTaxMo));
+  $('bk-maint').textContent    = fmtK(Math.round(maintMo));
+  $('bk-ins').textContent      = fmt(inp.monthlyInsurance);
+  $('bk-hoa').textContent      = fmt(inp.monthlyHOA);
+  $('bk-taxsave').textContent  = yr1TaxSave > 0 ? '-' + fmt(Math.round(yr1TaxSave)) : '$0';
+  $('bk-total').textContent    = fmtK(Math.round(buyMonthly));
+
+  const closingCosts = inp.homePrice * inp.closingCostPct / 100;
+  const initialInv   = downPayment + closingCosts;
+  const grownInv     = initialInv * Math.pow(1 + inp.investReturn / 100, 30);
+  const rent30       = inp.monthlyRent * Math.pow(1 + inp.rentIncrease / 100, 29);
+
+  $('rk-down').textContent        = fmtK(Math.round(downPayment));
+  $('rk-closing').textContent     = fmtK(Math.round(closingCosts));
+  $('rk-return-rate').textContent = inp.investReturn;
+  $('rk-grown').textContent       = fmtK(Math.round(grownInv));
+  $('rk-rent1').textContent       = fmtK(Math.round(inp.monthlyRent));
+  $('rk-rent30').textContent      = fmtK(Math.round(rent30));
+
+  // ── Verdict banner ────────────────────────────────────────────────────────
+  const banner = $('verdictBanner');
+  banner.className = 'verdict-banner ' + (buyWins30 ? 'buy-wins' : 'rent-wins');
+  $('verdictIcon').textContent = buyWins30 ? '🏆' : '💰';
+
+  if (buyWins30 && breakEvenYear !== null) {
+    $('verdictText').innerHTML =
+      `<strong>Buying wins over 30 years.</strong> After break-even at Year ${breakEvenYear}, buying outperforms renting, ending ${fmtK(Math.abs(gap30))} ahead in net wealth. ` +
+      `You pay ${fmtK(Math.round(buyMonthly - inp.monthlyRent))}/mo more upfront, but equity and appreciation eventually tip the scales.`;
+  } else if (buyWins30) {
+    $('verdictText').innerHTML =
+      `<strong>Buying wins over 30 years</strong> by ${fmtK(Math.abs(gap30))}, but renting is cheaper in the early years — buying starts ahead immediately in this scenario.`;
+  } else if (!buyWins30 && breakEvenYear !== null) {
+    $('verdictText').innerHTML =
+      `<strong>Renting wins over 30 years.</strong> Buying breaks even at Year ${breakEvenYear} but renting pulls back ahead, finishing ${fmtK(Math.abs(gap30))} richer.`;
+  } else {
+    $('verdictText').innerHTML =
+      `<strong>Renting wins over 30 years</strong> by ${fmtK(Math.abs(gap30))}. With these assumptions, the invested down payment and lower monthly costs consistently outpace home equity growth.`;
+  }
+}
+
+// ── Label-only refresh (live as slider moves) ─────────────────────────────────
+function refreshLabels() {
+  updateLabels(readInputs());
+  // Mark button as stale so user knows results are out of date
+  const btn = $('calcBtn');
+  btn.textContent = '⚡ Recalculate';
+  btn.classList.add('stale');
+}
+
+// ── Manual calculate ──────────────────────────────────────────────────────────
+function runCalc() {
+  update();
+  const btn = $('calcBtn');
+  btn.textContent = 'Calculate';
+  btn.classList.remove('stale');
+}
+
+// ── Advanced toggle ───────────────────────────────────────────────────────────
+function toggleAdvanced() {
+  $('advancedToggle').classList.toggle('open');
+  $('advancedSection').classList.toggle('open');
+}
+
+// ── Location helpers ──────────────────────────────────────────────────────────
+function setSlider(id, value) {
+  const el = $(id);
+  el.value = value;
+}
+
+function toTitleCase(str) {
+  return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function onStateChange() {
+  const state = $('stateSelect').value;
+  if (!state || !STATE_DATA[state]) {
+    $('locationStatus').textContent = '';
+    return;
+  }
+  const d = STATE_DATA[state];
+
+  // Auto-fill property tax
+  setSlider('propertyTax', d.pt);
+  // Auto-fill state income tax
+  setSlider('stateTax', d.it);
+  $('stateTaxAutoTag').style.display = 'inline';
+
+  // Repopulate county datalist
+  const prefix = state + '|';
+  const counties = Object.keys(COUNTY_DATA)
+    .filter(k => k.startsWith(prefix))
+    .map(k => k.slice(prefix.length))
+    .sort();
+  const dl = $('countyList');
+  dl.innerHTML = counties.map(c => `<option value="${c}">`).join('');
+
+  $('countyInput').value = '';
+  $('locationStatus').textContent = `✓ ${state} — avg property tax ${d.pt}%, state income tax ${d.it}%`;
+
+  refreshLabels();
+}
+
+function onCountyChange() {
+  const state  = $('stateSelect').value;
+  const county = toTitleCase($('countyInput').value.trim());
+  if (!state || !county) return;
+
+  const key = state + '|' + county;
+  const d   = COUNTY_DATA[key];
+  if (d) {
+    setSlider('propertyTax', d.pt);
+    $('locationStatus').textContent = `✓ ${county} County, ${state} — property tax ${d.pt}%`;
+    refreshLabels();
+  }
+}
+
+function onStateTaxManual() {
+  // Hide "AUTO" tag when user manually adjusts state tax
+  $('stateTaxAutoTag').style.display = 'none';
+  refreshLabels();
+}
+
+// Initial render
+update();
+</script>
+</body>
+</html>
